@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Proyecto Tortuga 3D - Centro de Masa en el Hocico</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #475569;
+      --line: #d9e2ec;
+      --ok: #166534;
+      --warn: #92400e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(160deg, #eef4ff 0%, #f7fafc 50%, #eef8f3 100%);
+      line-height: 1.5;
+    }
+    .wrap { max-width: 1060px; margin: 30px auto 60px; padding: 0 16px; }
+    .hero, .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+    }
+    h1, h2, h3 { margin: 0 0 10px; line-height: 1.25; }
+    h1 { font-size: 30px; }
+    h2 { font-size: 24px; margin-top: 22px; }
+    h3 { font-size: 19px; margin-top: 18px; }
+    p { margin: 9px 0; }
+    .muted { color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+    .card { grid-column: span 12; }
+    .half { grid-column: span 6; }
+    .tag {
+      display: inline-block; border-radius: 999px; padding: 4px 10px;
+      font-size: 13px; font-weight: 600; margin-right: 8px;
+    }
+    .ok { background: #ecfdf3; color: var(--ok); border: 1px solid #bbf7d0; }
+    .warn { background: #fffbeb; color: var(--warn); border: 1px solid #fde68a; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; }
+    pre { margin: 10px 0; padding: 12px; border-radius: 10px; background: #0b1220; color: #dbeafe; overflow: auto; }
+    ul, ol { margin: 8px 0 8px 22px; }
+    iframe { width: 100%; min-height: 420px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .q { border-left: 4px solid #b45309; background: #fffbeb; padding: 10px 12px; margin: 8px 0; border-radius: 8px; }
+    .links a {
+      display: inline-block; margin: 6px 8px 0 0; padding: 8px 11px;
+      border: 1px solid var(--line); border-radius: 8px; text-decoration: none; color: var(--text); background: #fff;
+    }
+    @media (max-width: 900px) { .half { grid-column: span 12; } h1 { font-size: 26px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Proyecto: Tortuga 3D con Centro de Masa en el Hocico</h1>
+      <p class="muted">Documento tecnico de avance - Calculo 2 - actualizado al 14 de abril de 2026.</p>
+      <p>
+        <span class="tag ok">Estado: calibrado y funcional</span>
+        <span class="tag warn">Pendiente: definir parametros finales de impresion y entrega</span>
+      </p>
+    </section>
+
+    <div class="grid">
+      <article class="card">
+        <h2>1. Objetivo</h2>
+        <p>Disenar una tortuga en 2D/3D cuyo equilibrio se produzca en el hocico y justificarlo con centro de masa.</p>
+      </article>
+
+      <article class="card half">
+        <h2>2. Resultado actual</h2>
+        <pre>[2D] Radio calibrado (grilla): r = 1.623037
+Area aproximada: A = 44.011375
+Centro de masa: x_bar = 0.000031, y_bar = 0.000007
+Distancia al hocico (0,0): 0.000032
+
+[3D realista] front_lobe_scale = 1.383745
+Volumen aproximado: V = 23.099928
+Centro de masa 3D: x_bar = 0.001180, y_bar = -0.003244, z_bar = 0.142940
+Distancia XY al hocico: 0.003452</pre>
+      </article>
+
+      <article class="card half">
+        <h2>3. Tecnologias usadas</h2>
+        <ul>
+          <li>Python 3 + NumPy para integracion numerica.</li>
+          <li>OpenSCAD para modelado 3D parametrico.</li>
+          <li>HTML/CSS para documentacion tecnica.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>4. Modelo geometrico 2D</h2>
+        <p>La region 2D de la tortuga se define como union de:</p>
+        <ol>
+          <li>Caparazon: elipse.</li>
+          <li>Cabeza: circulo.</li>
+          <li>Hocico: triangulo (apoyo en (0,0)).</li>
+          <li>Cola: triangulo.</li>
+          <li>Aletas delanteras y traseras: triangulos.</li>
+          <li>Dos engrosamientos frontales: circulos de radio <code>r</code>.</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>5. Centro de masa 2D (integrales dobles)</h2>
+        <pre>M   = rho * double_integral_R( dA )
+Mx  = rho * double_integral_R( x dA )
+My  = rho * double_integral_R( y dA )
+x_bar = Mx / M = double_integral_R( x dA ) / double_integral_R( dA )
+y_bar = My / M = double_integral_R( y dA ) / double_integral_R( dA )</pre>
+        <p>Se calibra <code>r</code> hasta cumplir <code>x_bar ~= 0</code> y <code>y_bar ~= 0</code> en el hocico.</p>
+      </article>
+
+      <article class="card">
+        <h2>6. Volumen y centro de masa 3D (integrales triples)</h2>
+        <p>
+          El modelo 3D realista no es una extrusion plana: se construye como combinacion de
+          elipsoides y capsulas (union/diferencia booleana). Por eso se evalua con integracion
+          numerica tipo Monte Carlo:
+        </p>
+        <pre>V ~= V_box * (N_inside / N_total)
+x_bar ~= promedio( x_i ) sobre puntos dentro del solido
+y_bar ~= promedio( y_i ) sobre puntos dentro del solido
+z_bar ~= promedio( z_i ) sobre puntos dentro del solido</pre>
+        <p>
+          El script <code>calculo_centro_masa_3d_tortuga.py</code> implementa esta verificacion
+          y calibra la escala frontal para que <code>x_bar ~= 0</code> en el hocico.
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>7. Como ejecutar</h2>
+        <h3>7.1 Recalcular y generar vista 2D</h3>
+        <pre>python3 calculo_centro_masa.py --solve --plot vista_2d_tortuga.svg</pre>
+
+        <h3>7.2 Abrir modelo 3D en OpenSCAD</h3>
+        <pre>open -a /Applications/OpenSCAD-2021.01.app modelo_tortuga.scad</pre>
+        <p class="muted">Si la app tiene otro nombre: <code>open -a /Applications/OpenSCAD.app modelo_tortuga.scad</code>.</p>
+        <h3>7.3 Verificar centro de masa 3D (modelo organico)</h3>
+        <pre>python3 calculo_centro_masa_3d_tortuga.py --samples 2000000</pre>
+        <ol>
+          <li>Preview rapido: tecla <code>F5</code>.</li>
+          <li>Render final: tecla <code>F6</code>.</li>
+          <li>Exportar STL: <code>File -&gt; Export -&gt; Export as STL</code>.</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>8. Vista 2D del analisis</h2>
+        <p class="muted">X roja = hocico (apoyo). Punto azul = centro de masa.</p>
+        <iframe src="vista_2d_tortuga.svg" title="Vista 2D de la tortuga"></iframe>
+      </article>
+
+      <article class="card">
+        <h2>9. Archivos principales</h2>
+        <div class="links">
+          <a href="modelo_tortuga.scad">modelo_tortuga.scad</a>
+          <a href="modelo_tortuga_plana.scad">modelo_tortuga_plana.scad</a>
+          <a href="calculo_centro_masa.py">calculo_centro_masa.py</a>
+          <a href="calculo_centro_masa_3d_tortuga.py">calculo_centro_masa_3d_tortuga.py</a>
+          <a href="guia_informe.md">guia_informe.md</a>
+          <a href="vista_2d_tortuga.svg">vista_2d_tortuga.svg</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>10. Preguntas para cerrar la entrega</h2>
+        <div class="q">1) Tamano final de impresion en mm (largo/ancho/alto)?</div>
+        <div class="q">2) Material e infill final (PLA/PETG, porcentaje)?</div>
+        <div class="q">3) Habra pintura o piezas adicionales que cambien la masa?</div>
+        <div class="q">4) El profesor exige integral analitica completa o acepta metodo numerico justificado?</div>
+        <div class="q">5) Quien explica cada bloque en el video (diseno, calculo, prueba fisica)?</div>
+      </article>
+    </div>
+  </div>
+</body>
+</html>
