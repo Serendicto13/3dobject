@@ -2,6 +2,12 @@
 """
 Calcula y calibra el centro de masa 2D del modelo de tortuga.
 
+Ademas genera una vista SVG anotada con:
+  - centro de masa en planta
+  - eje comun de apoyo
+  - zona estable del apoyo universal
+  - corte lateral esquematico de la cavidad de estabilidad
+
 Uso rapido:
   python3 calculo_centro_masa.py --solve --plot vista_2d_tortuga.svg
 """
@@ -26,7 +32,7 @@ class Geometry:
     head_center: tuple[float, float] = (-1.0, 0.0)
     head_radius: float = 0.95
 
-    # Hocico (apoyo en (0,0))
+    # Hocico (eje de apoyo en (0,0))
     beak: tuple[tuple[float, float], tuple[float, float], tuple[float, float]] = (
         (0.0, 0.0),
         (-0.8, 0.28),
@@ -78,7 +84,18 @@ class Geometry:
         return (self.x_max - self.x_min) * (self.y_max - self.y_min)
 
 
+@dataclass(frozen=True)
+class StabilityOverlay:
+    support_outer_radius: float = 0.55
+    support_inner_radius: float = 0.24
+    contact_z: float = -0.30
+    socket_center_z: float = 0.58
+    cm_z: float = 0.143145
+    scale_mm: float = 11.0
+
+
 GEOM = Geometry()
+OVERLAY = StabilityOverlay()
 
 
 def tri_mask(
@@ -111,14 +128,6 @@ def inside_turtle_base(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     mask |= tri_mask(x, y, *g.wing_down)
     mask |= tri_mask(x, y, *g.rear_up)
     mask |= tri_mask(x, y, *g.rear_down)
-    return mask
-
-
-def inside_turtle(x: np.ndarray, y: np.ndarray, weight_radius: float) -> np.ndarray:
-    g = GEOM
-    mask = inside_turtle_base(x, y)
-    mask |= (x - g.weight_top_center[0]) ** 2 + (y - g.weight_top_center[1]) ** 2 <= weight_radius**2
-    mask |= (x - g.weight_bottom_center[0]) ** 2 + (y - g.weight_bottom_center[1]) ** 2 <= weight_radius**2
     return mask
 
 
@@ -188,18 +197,94 @@ def _svg_point(x: float, y: float, x_min: float, y_max: float, scale: float, pad
 
 def _svg_polygon(points: tuple[tuple[float, float], ...], x_min: float, y_max: float, scale: float, pad: float) -> str:
     mapped = [_svg_point(px, py, x_min, y_max, scale, pad) for px, py in points]
-    pts = " ".join(f"{px:.2f},{py:.2f}" for px, py in mapped)
-    return pts
+    return " ".join(f"{px:.2f},{py:.2f}" for px, py in mapped)
 
 
-def save_svg(weight_radius: float, output: Path, grid_step: float) -> None:
+def _support_side_svg(overlay: StabilityOverlay, cm_offset_mm: float) -> str:
+    panel_x = 930.0
+    panel_y = 110.0
+    panel_w = 420.0
+    panel_h = 520.0
+
+    sx = panel_x + panel_w * 0.52
+    plane_y = panel_y + panel_h * 0.83
+    side_scale = 210.0
+
+    ring_outer = overlay.support_outer_radius * side_scale
+    ring_inner = overlay.support_inner_radius * side_scale
+    socket_r = (overlay.socket_center_z - overlay.contact_z) * side_scale
+    socket_center_y = plane_y - (overlay.socket_center_z - overlay.contact_z) * side_scale
+    cm_y = plane_y - (overlay.cm_z - overlay.contact_z) * side_scale
+
+    return f"""
+  <g>
+    <rect x="{panel_x:.2f}" y="{panel_y:.2f}" width="{panel_w:.2f}" height="{panel_h:.2f}" rx="18" fill="#ffffff" stroke="#dbe4ee" stroke-width="2"/>
+    <text x="{panel_x + 24:.2f}" y="{panel_y + 34:.2f}" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">
+      Corte lateral del apoyo universal
+    </text>
+    <text x="{panel_x + 24:.2f}" y="{panel_y + 66:.2f}" font-family="Arial, sans-serif" font-size="15" fill="#475569">
+      Mesa / dedo ancho: apoyo en anillo | Lapiz: apoyo en cavidad esferica
+    </text>
+
+    <line x1="{panel_x + 32:.2f}" y1="{plane_y:.2f}" x2="{panel_x + panel_w - 32:.2f}" y2="{plane_y:.2f}" stroke="#334155" stroke-width="3"/>
+    <rect x="{sx - ring_outer:.2f}" y="{plane_y - 18:.2f}" width="{2 * ring_outer:.2f}" height="18" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+    <rect x="{sx - ring_inner:.2f}" y="{plane_y - 22:.2f}" width="{2 * ring_inner:.2f}" height="22" fill="#ffffff"/>
+
+    <circle cx="{sx:.2f}" cy="{socket_center_y:.2f}" r="{socket_r:.2f}" fill="none" stroke="#f59e0b" stroke-width="3" stroke-dasharray="8 8"/>
+    <circle cx="{sx:.2f}" cy="{socket_center_y:.2f}" r="5" fill="#b45309"/>
+    <text x="{sx + 12:.2f}" y="{socket_center_y - 10:.2f}" font-family="Arial, sans-serif" font-size="16" fill="#92400e">
+      Centro de curvatura
+    </text>
+
+    <circle cx="{sx + cm_offset_mm * 7.0:.2f}" cy="{cm_y:.2f}" r="7" fill="#0f766e"/>
+    <text x="{sx + cm_offset_mm * 7.0 + 12:.2f}" y="{cm_y - 10:.2f}" font-family="Arial, sans-serif" font-size="16" fill="#115e59">
+      CM 3D
+    </text>
+
+    <line x1="{sx - 125:.2f}" y1="{plane_y + 34:.2f}" x2="{sx + 125:.2f}" y2="{plane_y + 34:.2f}" stroke="#64748b" stroke-width="2"/>
+    <text x="{sx - 72:.2f}" y="{plane_y + 60:.2f}" font-family="Arial, sans-serif" font-size="16" fill="#475569">
+      Plano de apoyo
+    </text>
+
+    <line x1="{sx - 150:.2f}" y1="{cm_y:.2f}" x2="{sx - 150:.2f}" y2="{plane_y:.2f}" stroke="#0f766e" stroke-width="2"/>
+    <line x1="{sx - 158:.2f}" y1="{cm_y:.2f}" x2="{sx - 142:.2f}" y2="{cm_y:.2f}" stroke="#0f766e" stroke-width="2"/>
+    <line x1="{sx - 158:.2f}" y1="{plane_y:.2f}" x2="{sx - 142:.2f}" y2="{plane_y:.2f}" stroke="#0f766e" stroke-width="2"/>
+    <text x="{sx - 235:.2f}" y="{0.5 * (cm_y + plane_y):.2f}" font-family="Arial, sans-serif" font-size="15" fill="#115e59">
+      h_CM
+    </text>
+
+    <line x1="{sx + 150:.2f}" y1="{socket_center_y:.2f}" x2="{sx + 150:.2f}" y2="{cm_y:.2f}" stroke="#b45309" stroke-width="2"/>
+    <line x1="{sx + 142:.2f}" y1="{socket_center_y:.2f}" x2="{sx + 158:.2f}" y2="{socket_center_y:.2f}" stroke="#b45309" stroke-width="2"/>
+    <line x1="{sx + 142:.2f}" y1="{cm_y:.2f}" x2="{sx + 158:.2f}" y2="{cm_y:.2f}" stroke="#b45309" stroke-width="2"/>
+    <text x="{sx + 162:.2f}" y="{0.5 * (socket_center_y + cm_y):.2f}" font-family="Arial, sans-serif" font-size="15" fill="#92400e">
+      margen de estabilidad puntual
+    </text>
+
+    <text x="{panel_x + 24:.2f}" y="{panel_y + panel_h - 88:.2f}" font-family="Arial, sans-serif" font-size="16" fill="#334155">
+      Si el CM queda por debajo del centro de curvatura, la tortuga se autocentra
+      sobre punta de lapiz.
+    </text>
+    <text x="{panel_x + 24:.2f}" y="{panel_y + panel_h - 56:.2f}" font-family="Arial, sans-serif" font-size="16" fill="#334155">
+      Si la proyeccion del CM queda dentro del anillo, tambien se sostiene sobre mesa
+      o dedo ancho.
+    </text>
+  </g>
+"""
+
+
+def save_svg(weight_radius: float, output: Path, grid_step: float, overlay: StabilityOverlay) -> None:
     g = GEOM
     area, x_bar, y_bar = centroid_grid(weight_radius, step=grid_step)
+    distance = float(np.hypot(x_bar, y_bar))
+    distance_mm = distance * overlay.scale_mm
+    stable_margin = max(overlay.support_outer_radius - distance, 0.0) * overlay.scale_mm
 
-    width = 1200
-    height = 620
-    pad = 40.0
-    scale_x = (width - 2 * pad) / (g.x_max - g.x_min)
+    width = 1380
+    height = 760
+    pad = 48.0
+    left_width = 840.0
+
+    scale_x = (left_width - 2 * pad) / (g.x_max - g.x_min)
     scale_y = (height - 2 * pad) / (g.y_max - g.y_min)
     scale = min(scale_x, scale_y)
 
@@ -214,6 +299,8 @@ def save_svg(weight_radius: float, output: Path, grid_step: float) -> None:
     body_ry = g.body_b * scale
     head_r = g.head_radius * scale
     weight_r = weight_radius * scale
+    support_outer = overlay.support_outer_radius * scale
+    support_inner = overlay.support_inner_radius * scale
 
     beak_poly = _svg_polygon(g.beak, g.x_min, g.y_max, scale, pad)
     tail_poly = _svg_polygon(g.tail, g.x_min, g.y_max, scale, pad)
@@ -223,8 +310,16 @@ def save_svg(weight_radius: float, output: Path, grid_step: float) -> None:
     rear_dn_poly = _svg_polygon(g.rear_down, g.x_min, g.y_max, scale, pad)
 
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
-  <rect x="0" y="0" width="{width}" height="{height}" fill="#f9fafb"/>
-  <g fill="#ffd44d" stroke="#303030" stroke-width="2">
+  <rect x="0" y="0" width="{width}" height="{height}" fill="#f8fafc"/>
+  <rect x="24" y="24" width="830" height="712" rx="20" fill="#ffffff" stroke="#dbe4ee" stroke-width="2"/>
+  <text x="48" y="58" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#111827">
+    Tortuga 2D - referencias de centro de masa y apoyo universal
+  </text>
+  <text x="48" y="90" font-family="Arial, sans-serif" font-size="16" fill="#475569">
+    x_bar={x_bar:.6f}, y_bar={y_bar:.6f}, distancia al eje={distance:.6f} ({distance_mm:.3f} mm a escala final)
+  </text>
+
+  <g fill="#fde68a" stroke="#374151" stroke-width="2.2">
     <ellipse cx="{body_cx:.2f}" cy="{body_cy:.2f}" rx="{body_rx:.2f}" ry="{body_ry:.2f}"/>
     <circle cx="{head_cx:.2f}" cy="{head_cy:.2f}" r="{head_r:.2f}"/>
     <polygon points="{beak_poly}"/>
@@ -236,17 +331,39 @@ def save_svg(weight_radius: float, output: Path, grid_step: float) -> None:
     <circle cx="{wt_cx:.2f}" cy="{wt_cy:.2f}" r="{weight_r:.2f}"/>
     <circle cx="{wb_cx:.2f}" cy="{wb_cy:.2f}" r="{weight_r:.2f}"/>
   </g>
+
+  <circle cx="{support_x:.2f}" cy="{support_y:.2f}" r="{support_outer:.2f}" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="3" stroke-dasharray="10 8"/>
+  <circle cx="{support_x:.2f}" cy="{support_y:.2f}" r="{support_inner:.2f}" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="3" stroke-dasharray="10 8"/>
+
+  <line x1="{support_x:.2f}" y1="{support_y:.2f}" x2="{cm_x:.2f}" y2="{cm_y:.2f}" stroke="#0f766e" stroke-width="3"/>
+
   <g stroke-width="3" stroke-linecap="round">
-    <line x1="{support_x - 8:.2f}" y1="{support_y - 8:.2f}" x2="{support_x + 8:.2f}" y2="{support_y + 8:.2f}" stroke="#d62828"/>
-    <line x1="{support_x - 8:.2f}" y1="{support_y + 8:.2f}" x2="{support_x + 8:.2f}" y2="{support_y - 8:.2f}" stroke="#d62828"/>
+    <line x1="{support_x - 10:.2f}" y1="{support_y - 10:.2f}" x2="{support_x + 10:.2f}" y2="{support_y + 10:.2f}" stroke="#dc2626"/>
+    <line x1="{support_x - 10:.2f}" y1="{support_y + 10:.2f}" x2="{support_x + 10:.2f}" y2="{support_y - 10:.2f}" stroke="#dc2626"/>
   </g>
-  <circle cx="{cm_x:.2f}" cy="{cm_y:.2f}" r="5" fill="#006d77"/>
-  <text x="40" y="34" font-family="Arial, sans-serif" font-size="22" fill="#111">
-    Tortuga 2D - r={weight_radius:.6f}, A={area:.4f}, x_bar={x_bar:.6f}, y_bar={y_bar:.6f}
+
+  <circle cx="{cm_x:.2f}" cy="{cm_y:.2f}" r="6" fill="#0f766e"/>
+  <text x="{support_x + 16:.2f}" y="{support_y - 12:.2f}" font-family="Arial, sans-serif" font-size="16" fill="#991b1b">
+    Eje comun de apoyo
   </text>
-  <text x="40" y="62" font-family="Arial, sans-serif" font-size="17" fill="#333">
-    X roja: hocico / punto de apoyo | Punto azul: centro de masa
+  <text x="{cm_x + 14:.2f}" y="{cm_y - 12:.2f}" font-family="Arial, sans-serif" font-size="16" fill="#115e59">
+    Centro de masa 2D
   </text>
+  <text x="{support_x + support_outer + 14:.2f}" y="{support_y + 4:.2f}" font-family="Arial, sans-serif" font-size="15" fill="#047857">
+    anillo estable mesa / dedo
+  </text>
+  <text x="{support_x + support_inner + 14:.2f}" y="{support_y + 28:.2f}" font-family="Arial, sans-serif" font-size="15" fill="#b45309">
+    apertura para lapiz
+  </text>
+
+  <text x="48" y="686" font-family="Arial, sans-serif" font-size="16" fill="#334155">
+    Margen radial de estabilidad plana: {stable_margin:.3f} mm.
+  </text>
+  <text x="48" y="714" font-family="Arial, sans-serif" font-size="16" fill="#334155">
+    La proyeccion XY del CM queda dentro del anillo de apoyo universal.
+  </text>
+
+{_support_side_svg(overlay, distance_mm)}
 </svg>
 """
 
@@ -255,7 +372,7 @@ def save_svg(weight_radius: float, output: Path, grid_step: float) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Centro de masa de la tortuga en el hocico.")
+    parser = argparse.ArgumentParser(description="Centro de masa 2D y diagrama de estabilidad de la tortuga.")
     parser.add_argument("--radius", type=float, default=1.623037, help="Radio de engrosamiento en aletas delanteras.")
     parser.add_argument(
         "--solve",
@@ -275,6 +392,12 @@ def main() -> None:
         help="Ruta de salida del esquema SVG (omitir con --no-plot).",
     )
     parser.add_argument("--no-plot", action="store_true", help="No generar esquema SVG.")
+    parser.add_argument("--support-outer-radius", type=float, default=OVERLAY.support_outer_radius)
+    parser.add_argument("--support-inner-radius", type=float, default=OVERLAY.support_inner_radius)
+    parser.add_argument("--contact-z", type=float, default=OVERLAY.contact_z)
+    parser.add_argument("--socket-center-z", type=float, default=OVERLAY.socket_center_z)
+    parser.add_argument("--cm-z", type=float, default=OVERLAY.cm_z)
+    parser.add_argument("--scale-mm", type=float, default=OVERLAY.scale_mm)
     args = parser.parse_args()
 
     radius = args.radius
@@ -287,10 +410,18 @@ def main() -> None:
 
     print(f"Area aproximada: A = {area:.6f}")
     print(f"Centro de masa: x_bar = {x_bar:.6f}, y_bar = {y_bar:.6f}")
-    print(f"Distancia al hocico (0,0): {distance:.6f}")
+    print(f"Distancia al eje de apoyo (0,0): {distance:.6f}")
 
     if not args.no_plot:
-        save_svg(radius, args.plot, grid_step=args.grid_step)
+        overlay = StabilityOverlay(
+            support_outer_radius=args.support_outer_radius,
+            support_inner_radius=args.support_inner_radius,
+            contact_z=args.contact_z,
+            socket_center_z=args.socket_center_z,
+            cm_z=args.cm_z,
+            scale_mm=args.scale_mm,
+        )
+        save_svg(radius, args.plot, grid_step=args.grid_step, overlay=overlay)
         print(f"Esquema guardado en: {args.plot}")
 
 
