@@ -327,22 +327,27 @@ r ≈ 1.623037,   x̄ ≈ 0.000031,   ȳ ≈ 0.000007
           usada por el script es:
         </p>
         <div class="formula">
-E₁ = { (x,y,z) : ((x + 2.0)/1.9)² + (y/1.95)² + ((z - 0.25)/1.25)² ≤ 1 }
+Caparazon (hueco):
+  E₁ = { (x,y,z) : ((x+2.4)/1.95)² + (y/1.90)² + ((z-1.05)/0.95)² ≤ 1 }
+  E₂ = { (x,y,z) : ((x+2.55)/1.45)² + (y/1.50)² + ((z-1.48)/0.74)² ≤ 1 }
+  Cavidad = { (x,y,z) : ((x+2.42)/1.48)² + (y/1.45)² + ((z-1.08)/0.62)² ≤ 1 }
+  Shell = (E₁ ∪ E₂) \ Cavidad
 
-E₂ = { (x,y,z) : ((x + 2.1)/1.52)² + (y/1.55)² + ((z - 0.95)/1.0)² ≤ 1 }
+Cabeza: ellipsoide centrado en (-0.18, 0, -0.06), semiejes (0.62, 0.42, 0.30)
+
+Pad de apoyo: cilindro eliptico en (0, 0, -0.47), semiejes a=0.30, b=0.18, h=0.12
+
+Lobulos delanteros (variable de diseno s = front_lobe_scale):
+  L± = { (x,y,z) : ((x-2.15)/1.25s)² + ((y∓2.25)/0.82s)² + ((z+0.02)/0.30s)² ≤ 1 }
 
 Capsula(P₀, P₁, r) = { Q : dist(Q, segmento(P₀,P₁)) ≤ r }
-
-Anillo = { (x,y,z) : 0.24² ≤ x² + y² ≤ 0.55², |z + 0.22| ≤ 0.08 }
-
-Cavidad = { (x,y,z) : x² + y² + (z - 0.58)² ≤ 0.94² }
         </div>
         <div class="formula">
-T = (Caparazon ∪ Cabeza ∪ Cuello ∪ Aletas ∪ Cola ∪ LobulosFrontales ∪ Anillo) \ Cavidad
+T = Shell ∪ Cuello ∪ Cabeza ∪ Hocico ∪ PadApoyo ∪ AletasDelanteras ∪ LobulFrontales ∪ AletasTraseras ∪ Cola
         </div>
         <p>
-          Esa definicion es rigurosa y es la que usa el verificador numérico. El archivo
-          <code>modelo_tortuga_estable.scad</code> implementa la misma idea en OpenSCAD.
+          Esta definicion replica exactamente <code>modelo_tortuga_estable.scad</code> y es la que
+          usa el verificador Monte Carlo en <code>calculo_centro_masa_3d_tortuga.py</code>.
         </p>
       </article>
 
@@ -350,19 +355,19 @@ T = (Caparazon ∪ Cabeza ∪ Cuello ∪ Aletas ∪ Cola ∪ LobulosFrontales �
         <h2>6. Volumenes de las piezas que mueven el equilibrio</h2>
         <p>
           La pieza clave son los dos lobulos delanteros. Cada uno es un elipsoide de semiejes
-          <code>1.2s</code>, <code>0.82s</code> y <code>0.36s</code>.
+          <code>1.25s</code>, <code>0.82s</code> y <code>0.30s</code>, con <code>s = front_lobe_scale</code>.
         </p>
         <div class="formula">
-V<sub>lobulo</sub>(s) = (4/3)π(1.2s)(0.82s)(0.36s)
+V<sub>lobulo</sub>(s) = (4/3)π(1.25s)(0.82s)(0.30s) = (4/3)π · 0.3075 · s³
 
-V<sub>lobulo</sub>(1.664025) ≈ 6.852459
+V<sub>lobulo</sub>(1.685989) ≈ 6.163
         </div>
         <p>
-          Como ambos lobulos estan centrados en <code>x = 3.55</code>, aportan un momento positivo
-          grande:
+          Como ambos lobulos estan centrados en <code>x = 2.15</code>, aportan un momento positivo
+          grande que desplaza el centro de masa hacia la cabeza:
         </p>
         <div class="formula">
-M<sub>x,lobulos</sub>(s) = 2 · V<sub>lobulo</sub>(s) · 3.55
+M<sub>x,lobulos</sub>(s) = 2 · V<sub>lobulo</sub>(s) · 2.15
         </div>
         <p>
           Esa es la razon matematica de que las “manos delanteras” y los engrosamientos frontales
@@ -400,37 +405,44 @@ x̄ = M<sub>x</sub> / V,   ȳ = M<sub>y</sub> / V,   z̄ = M<sub>z</sub> / V
           criterios adicionales.
         </p>
         <div class="formula">
-Mesa / dedo ancho:
+Condicion de estabilidad (apoyo en pad eliptico):
 
-√(x̄² + ȳ²) < R<sub>anillo</sub> = 0.55
+La proyeccion del CM debe caer dentro del pad de apoyo:
+
+  ((x̄ - 0) / 0.30)² + (ȳ / 0.18)² ≤ 1
         </div>
         <div class="formula">
-Lapiz / apoyo puntual:
+Condicion adicional: la cabeza es la parte mas baja del solido
 
-z̄ < z<sub>centro de curvatura</sub> = 0.58
+  z_min del solido ≈ z_inferior del pad = -0.53
         </div>
         <p>
-          Con la configuracion universal actual, los resultados son:
+          Con <code>front_lobe_scale = 1.685989</code>, los resultados del verificador Monte Carlo
+          (3 000 000 muestras) son:
         </p>
         <div class="formula">
-V ≈ 35.793248
-x̄ ≈ -0.000496
-ȳ ≈ 0.004452
-z̄ ≈ 0.143180
-√(x̄² + ȳ²) ≈ 0.004480
+V ≈ 23.9681
+x̄ ≈ 0.009380
+ȳ ≈ 0.000779
+z̄ ≈ 0.471730
+√(x̄² + ȳ²) ≈ 0.009413
+
+Test elipse de apoyo: ((0.009380/0.30)² + (0.000779/0.18)²) ≈ 0.0010 ≤ 1
         </div>
         <div class="note">
           A escala final de impresion (<code>11 mm</code> por unidad CAD), el desfase horizontal del
-          centro de masa es de apenas <strong>0.049 mm</strong>. La pieza queda estable sobre mesa,
-          sobre dedo ancho y tambien sobre punta de lapiz gracias a la cavidad esferica.
+          centro de masa es de apenas <strong>0.104 mm</strong>. La proyeccion del CM queda
+          practicamente en el centro del pad de apoyo (test = 0.0010 de 1.0 maximo).
+          La tortuga es <strong>estable</strong> sobre mesa plana o dedo ancho.
         </div>
       </article>
 
       <article class="card half">
         <h2>9. Resultado final para impresion</h2>
         <div class="formula">
-Volumen escalado = 35.793248 · 11³ / 1000 ≈ 47.64 ml
-PLA solido ≈ 47.64 · 1.24 ≈ 59.07 g
+Volumen CAD = 23.9681 unidades³
+Volumen escalado = 23.9681 · 11³ / 1000 ≈ 31.90 ml
+PLA solido (densidad 1.24 g/ml) ≈ 31.90 · 1.24 ≈ 39.56 g
         </div>
         <p>
           La recomendacion para laboratorio es:
