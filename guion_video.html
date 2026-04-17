@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guion Video — Tortuga 3D Centro de Masa</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: rgba(30, 41, 59, 0.8);
+      --border: rgba(148, 163, 184, 0.12);
+      --border-hover: rgba(148, 163, 184, 0.3);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --green: #10b981;
+      --blue: #3b82f6;
+      --purple: #8b5cf6;
+      --pink: #ec4899;
+      --yellow: #f59e0b;
+      --radius: 16px;
+      --shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* Fondo animado */
+    .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .bg::before {
+      content: ''; position: absolute; width: 700px; height: 700px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(16,185,129,0.07) 0%, transparent 70%);
+      top: -200px; left: -100px; animation: f1 18s ease-in-out infinite alternate;
+    }
+    .bg::after {
+      content: ''; position: absolute; width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 70%);
+      bottom: -100px; right: -100px; animation: f2 14s ease-in-out infinite alternate;
+    }
+    @keyframes f1 { to { transform: translate(80px, 60px) scale(1.1); } }
+    @keyframes f2 { to { transform: translate(-60px, -80px) scale(1.15); } }
+
+    .wrap {
+      position: relative; z-index: 1;
+      max-width: 900px; margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 48px 40px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow);
+    }
+    .badge {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: var(--green);
+    }
+    h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #10b981, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+    .subtitle { color: var(--muted); font-size: 1rem; }
+
+    /* Barra de duración total */
+    .duration-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      margin-top: 28px;
+      flex-wrap: wrap;
+    }
+    .duration-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .duration-chip .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+
+    /* Tarjetas de cada parte */
+    .part {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: border-color 0.3s;
+    }
+    .part:hover { border-color: var(--border-hover); }
+
+    .part-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    .part-avatar {
+      width: 52px; height: 52px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800;
+      flex-shrink: 0;
+    }
+    .part-meta { flex: 1; }
+    .part-name {
+      font-size: 18px; font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .part-role { font-size: 13px; color: var(--muted); }
+    .part-time {
+      font-size: 13px; font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .part-body { padding: 28px 32px; }
+
+    /* Bloques de texto del guion */
+    .script-block {
+      position: relative;
+      background: rgba(0,0,0,0.25);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      border-left: 3px solid transparent;
+    }
+    .script-block p {
+      font-size: 15px;
+      line-height: 1.75;
+      color: #e2e8f0;
+      margin-bottom: 10px;
+    }
+    .script-block p:last-child { margin-bottom: 0; }
+
+    /* Nota de pantalla */
+    .screen-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      font-size: 13px;
+      color: #93c5fd;
+    }
+    .screen-note .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* Formula dentro del guion */
+    .formula-inline {
+      display: inline-block;
+      background: rgba(139,92,246,0.12);
+      border: 1px solid rgba(139,92,246,0.25);
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin: 8px 0;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 14px;
+      color: #c4b5fd;
+      width: 100%;
+    }
+
+    /* Tips finales */
+    .tips {
+      background: var(--card);
+      border: 1px solid rgba(245,158,11,0.25);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      box-shadow: var(--shadow);
+    }
+    .tips h2 {
+      font-size: 16px; font-weight: 700;
+      color: var(--yellow);
+      margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .tips ul { list-style: none; }
+    .tips li {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      color: var(--muted);
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .tips li:last-child { border-bottom: none; }
+    .tips li::before { content: '→'; color: var(--yellow); font-weight: 700; flex-shrink: 0; }
+
+    /* Colores por persona */
+    .victoria .part-header  { border-bottom-color: rgba(16,185,129,0.2); }
+    .victoria .part-avatar  { background: rgba(16,185,129,0.15); color: var(--green); border: 2px solid rgba(16,185,129,0.3); }
+    .victoria .part-name    { color: var(--green); }
+    .victoria .script-block { border-left-color: var(--green); }
+
+    .jhon .part-header  { border-bottom-color: rgba(59,130,246,0.2); }
+    .jhon .part-avatar  { background: rgba(59,130,246,0.15); color: var(--blue); border: 2px solid rgba(59,130,246,0.3); }
+    .jhon .part-name    { color: var(--blue); }
+    .jhon .script-block { border-left-color: var(--blue); }
+
+    .felipe .part-header  { border-bottom-color: rgba(139,92,246,0.2); }
+    .felipe .part-avatar  { background: rgba(139,92,246,0.15); color: var(--purple); border: 2px solid rgba(139,92,246,0.3); }
+    .felipe .part-name    { color: var(--purple); }
+    .felipe .script-block { border-left-color: var(--purple); }
+
+    @media (max-width: 600px) {
+      .part-header { flex-wrap: wrap; }
+      .part-body, .part-header { padding: 20px; }
+      .tips { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="wrap">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="badge">Calculo 2 — Proyecto Final</div>
+      <h1>Guion para el Video</h1>
+      <p class="subtitle">Tortuga 3D con centro de masa alineado al punto de apoyo</p>
+      <div class="duration-bar">
+        <div class="duration-chip">
+          <span class="dot" style="background:#10b981"></span>
+          Victoria — 1:20 min
+        </div>
+        <div class="duration-chip">
+          <span class="dot" style="background:#3b82f6"></span>
+          Jhon — 1:20 min
+        </div>
+        <div class="duration-chip">
+          <span class="dot" style="background:#8b5cf6"></span>
+          Felipe — 1:20 min
+        </div>
+        <div class="duration-chip" style="border-color:rgba(245,158,11,0.3); color:#f59e0b;">
+          Total estimado: 4 minutos
+        </div>
+      </div>
+    </div>
+
+    <!-- PARTE 1: VICTORIA -->
+    <div class="part victoria">
+      <div class="part-header">
+        <div class="part-avatar">V</div>
+        <div class="part-meta">
+          <div class="part-name">Victoria</div>
+          <div class="part-role">Parte 1 — Presentacion del proyecto y el modelo 3D</div>
+        </div>
+        <div class="part-time">0:00 – 1:20</div>
+      </div>
+      <div class="part-body">
+
+        <div class="script-block">
+          <p>
+            Buenas, somos del grupo [numero de grupo]. En este video vamos a explicar como aplicamos
+            el concepto de centro de masa usando integrales dobles, y como lo relacionamos con el
+            equilibrio de este solido 3D: una tortuga marina.
+          </p>
+        </div>
+
+        <div class="script-block">
+          <p>
+            El objetivo del proyecto era disenar un animal usando figuras geometricas simples,
+            calcular su centro de masa con integrales dobles, y verificar que el solido se mantiene
+            en equilibrio sobre un punto de apoyo especifico.
+          </p>
+        </div>
+
+        <div class="screen-note">
+          <span class="icon">🖥️</span>
+          Mostrar en pantalla el visor 3D interactivo — archivo <strong>tortuga_3d_interactiva.html</strong>
+        </div>
+
+        <div class="script-block">
+          <p>
+            El modelo 3D lo construimos en OpenSCAD usando unicamente figuras geometricas simples:
+            elipsoides para el caparazon, la cabeza y las aletas, cilindros para el cuello y la
+            cola, y un cilindro eliptico como base de apoyo justo debajo de la cabeza.
+          </p>
+          <p>
+            Todas estas figuras tienen formulas matematicas exactas, lo que nos permite calcular
+            areas, volumenes y momentos de forma analitica.
+          </p>
+        </div>
+
+        <div class="script-block">
+          <p>
+            El punto de apoyo esta ubicado debajo de la cabeza. La idea fisica es que el caparazon
+            es la parte mas pesada y esta en la parte trasera, mientras que las aletas delanteras
+            grandes desplazan masa hacia adelante. Al balancear esas dos fuerzas con integrales
+            dobles, logramos que el centro de masa caiga exactamente sobre el punto de apoyo.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PARTE 2: JHON -->
+    <div class="part jhon">
+      <div class="part-header">
+        <div class="part-avatar">J</div>
+        <div class="part-meta">
+          <div class="part-name">Jhon</div>
+          <div class="part-role">Parte 2 — Calculo con integrales dobles</div>
+        </div>
+        <div class="part-time">1:20 – 2:40</div>
+      </div>
+      <div class="part-body">
+
+        <div class="screen-note">
+          <span class="icon">🖥️</span>
+          Mostrar en pantalla el SVG 2D — archivo <strong>vista_2d_tortuga.svg</strong>
+        </div>
+
+        <div class="script-block">
+          <p>
+            Para calcular el centro de masa, primero representamos la tortuga en vista 2D como una
+            union de figuras simples: una elipse para el caparazon con semiejes a = 3.1 y b = 2.2,
+            un circulo para la cabeza de radio 0.95, triangulos para el hocico, la cola y las
+            aletas, y dos circulos grandes en las aletas delanteras como variable de diseno.
+          </p>
+        </div>
+
+        <div class="script-block">
+          <p>
+            El centro de masa se calcula con integrales dobles:
+          </p>
+          <div class="formula-inline">x&#772; = &#8748;&#8748; x dA / &#8748;&#8748; dA &nbsp;&nbsp;&nbsp;&nbsp; y&#772; = &#8748;&#8748; y dA / &#8748;&#8748; dA</div>
+          <p>
+            Por la simetria del modelo respecto al eje x, tenemos que y&#772; = 0 directamente,
+            sin necesidad de calcularlo.
+          </p>
+        </div>
+
+        <div class="script-block">
+          <p>
+            Para x&#772; usamos la propiedad de que el centroide de una union de figuras es la
+            suma ponderada de los centroides individuales:
+          </p>
+          <div class="formula-inline">M<sub>x</sub> = &sum; A<sub>i</sub> &middot; x<sub>i</sub></div>
+          <p>
+            El caparazon tiene su centroide en x = -3.4 y la cabeza en x = -1.0, ambos negativos,
+            lo que jala el centro de masa hacia la cola. Para compensar, pusimos dos circulos
+            grandes en las aletas delanteras con centroide en x = 4.8, que es positivo y jala
+            el centro de masa hacia la cabeza.
+          </p>
+        </div>
+
+        <div class="script-block">
+          <p>
+            Ajustamos el radio r de esos dos circulos delanteros hasta que x&#772; fuera igual
+            a cero, que es la posicion del punto de apoyo. La ecuacion que resolvemos es:
+          </p>
+          <div class="formula-inline">r = &radic;( &minus;M<sub>x,0</sub> / (9.6&pi;) ) &asymp; 1.623</div>
+          <p>
+            Con ese radio, el centro de masa queda practicamente en el origen:
+            x&#772; &asymp; 0.000031, y&#772; &asymp; 0.000007.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PARTE 3: FELIPE -->
+    <div class="part felipe">
+      <div class="part-header">
+        <div class="part-avatar">F</div>
+        <div class="part-meta">
+          <div class="part-name">Felipe</div>
+          <div class="part-role">Parte 3 — Verificacion 3D y demostracion del equilibrio</div>
+        </div>
+        <div class="part-time">2:40 – 4:00</div>
+      </div>
+      <div class="part-body">
+
+        <div class="script-block">
+          <p>
+            Una vez calculado el centro de masa en 2D, trasladamos ese diseno al modelo 3D.
+            Las mismas piezas planas se convirtieron en elipsoides y cilindros en tres
+            dimensiones, manteniendo la misma distribucion de masa.
+          </p>
+        </div>
+
+        <div class="screen-note">
+          <span class="icon">🖥️</span>
+          Mostrar en pantalla la terminal corriendo <strong>calculo_centro_masa_3d_tortuga.py</strong>
+        </div>
+
+        <div class="script-block">
+          <p>
+            Para verificar que el modelo 3D tambien es estable, usamos integracion numerica
+            por Monte Carlo: generamos 3 millones de puntos aleatorios dentro del solido y
+            calculamos el promedio de coordenadas. El resultado fue:
+          </p>
+          <div class="formula-inline">x&#772; &asymp; 0.0094 &nbsp;&nbsp; y&#772; &asymp; 0.0008 &nbsp;&nbsp; z&#772; &asymp; 0.47</div>
+          <p>
+            La proyeccion del centro de masa en el plano horizontal cae a solo 0.1 milimetros
+            del centro del pad de apoyo.
+          </p>
+        </div>
+
+        <div class="script-block">
+          <p>
+            La condicion de estabilidad es que esa proyeccion quede dentro de la elipse de apoyo.
+            El test dio 0.001 sobre un maximo de 1.0, asi que el modelo es completamente estable.
+          </p>
+        </div>
+
+        <div class="screen-note">
+          <span class="icon">📷</span>
+          Mostrar la tortuga impresa en 3D o el modelo en pantalla, apoyada sobre la cabeza
+        </div>
+
+        <div class="script-block">
+          <p>
+            Como pueden ver, la tortuga se apoya sobre la cabeza y el caparazon queda levantado
+            en equilibrio. Eso es posible porque el centro de masa esta exactamente sobre ese
+            punto de apoyo, tal como lo predijo el calculo con integrales dobles.
+          </p>
+          <p>
+            La distribucion de masa en el diseno, que a primera vista parece solo estetica,
+            tiene un proposito matematico preciso: mover el centro de masa al lugar exacto
+            donde queremos que se apoye el solido.
+          </p>
+          <p>
+            Eso es todo, muchas gracias.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TIPS -->
+    <div class="tips">
+      <h2>Consejos para grabar</h2>
+      <ul>
+        <li>Victoria abre con el visor 3D interactivo en pantalla — archivo <code>tortuga_3d_interactiva.html</code></li>
+        <li>Jhon muestra el SVG 2D mientras habla de las integrales — archivo <code>vista_2d_tortuga.svg</code></li>
+        <li>Felipe muestra la terminal con el resultado del script antes de mostrar la tortuga fisica</li>
+        <li>El video debe durar entre 3 y 5 minutos — con este guion queda en aprox. 4 minutos</li>
+        <li>No es necesario leer exactamente el guion, pueden parafrasear con sus propias palabras</li>
+        <li>Asegurense de mencionar: integrales dobles, centro de masa, equilibrio, figuras geometricas</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>
